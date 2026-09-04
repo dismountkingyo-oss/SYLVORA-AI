@@ -1,0 +1,1689 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>ForestGuard AI</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.4/dist/teachablemachine-image.min.js"></script>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+*{
+    box-sizing:border-box;
+}
+
+html{
+    scroll-behavior:smooth;
+}
+
+body{
+    margin:0;
+    min-height:100vh;
+    font-family:Arial,sans-serif;
+    color:white;
+    text-align:center;
+    background-image:url("background.png");
+    background-size:cover;
+    background-position:center;
+    background-attachment:fixed;
+}
+
+body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.65);
+    z-index:-1;
+}
+
+.container{
+    max-width:1000px;
+    margin:auto;
+    padding:25px;
+}
+
+/* TITLE */
+
+h1{
+    font-size:44px;
+    margin-bottom:5px;
+    text-shadow:
+        0 0 8px rgba(46,204,113,.9),
+        0 0 18px rgba(46,204,113,.7),
+        0 0 35px rgba(46,204,113,.4);
+}
+
+.subtitle{
+    font-size:18px;
+    margin-bottom:20px;
+}
+
+/* NAVIGATION */
+
+.quick-nav{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:10px;
+    margin:20px 0 28px;
+    position:sticky;
+    top:8px;
+    z-index:1000;
+}
+
+.nav-btn{
+    text-decoration:none;
+    color:white;
+    background:rgba(0,0,0,.82);
+    border:1px solid rgba(46,204,113,.6);
+    padding:11px 18px;
+    border-radius:12px;
+    font-weight:bold;
+    font-size:15px;
+    backdrop-filter:blur(8px);
+    box-shadow:0 0 12px rgba(39,174,96,.2);
+    transition:.25s;
+}
+
+.nav-btn:hover{
+    background:#27ae60;
+    transform:translateY(-2px);
+    box-shadow:0 0 20px rgba(46,204,113,.6);
+}
+
+/* CARDS */
+
+.card{
+    background:rgba(0,0,0,.72);
+    padding:25px;
+    margin:20px 0;
+    border-radius:18px;
+    box-shadow:0 5px 25px rgba(0,0,0,.5);
+}
+
+#status{
+    font-size:18px;
+    margin:15px;
+}
+
+/* UPLOAD */
+
+.upload-card{
+    position:relative;
+    overflow:hidden;
+    border:2px solid rgba(39,174,96,.45);
+}
+
+.upload-box{
+    position:relative;
+    border:2px dashed rgba(255,255,255,.45);
+    border-radius:18px;
+    padding:30px 20px;
+    margin:20px auto;
+    max-width:700px;
+    background:rgba(255,255,255,.06);
+    transition:.3s;
+}
+
+.upload-box:hover{
+    border-color:#27ae60;
+    background:rgba(39,174,96,.10);
+    transform:translateY(-2px);
+    box-shadow:0 0 20px rgba(39,174,96,.2);
+}
+
+.upload-icon{
+    font-size:55px;
+    margin-bottom:10px;
+    text-shadow:0 0 15px rgba(39,174,96,.6);
+}
+
+.upload-title{
+    font-size:23px;
+    font-weight:bold;
+    margin-bottom:8px;
+}
+
+.upload-subtitle{
+    font-size:15px;
+    opacity:.8;
+    margin-bottom:18px;
+}
+
+.file-label{
+    display:inline-block;
+    background:#27ae60;
+    color:white;
+    padding:14px 25px;
+    border-radius:12px;
+    cursor:pointer;
+    font-size:16px;
+    font-weight:bold;
+    transition:.3s;
+    box-shadow:0 0 15px rgba(39,174,96,.3);
+}
+
+.file-label:hover{
+    transform:scale(1.04);
+    background:#2ecc71;
+    box-shadow:0 0 22px rgba(46,204,113,.55);
+}
+
+#imageInput{
+    display:none;
+}
+
+.file-name{
+    margin-top:14px;
+    font-size:14px;
+    opacity:.85;
+}
+
+.upload-hint{
+    margin-top:12px;
+    font-size:13px;
+    opacity:.7;
+}
+
+#preview{
+    display:none;
+    max-width:90%;
+    max-height:400px;
+    margin:20px auto;
+    border-radius:15px;
+    border:3px solid rgba(255,255,255,.25);
+    box-shadow:0 5px 20px rgba(0,0,0,.5);
+}
+
+/* BUTTONS */
+
+button{
+    border:none;
+    padding:13px 22px;
+    margin:8px;
+    border-radius:10px;
+    cursor:pointer;
+    font-size:16px;
+    font-weight:bold;
+}
+
+#analyzeBtn{
+    background:#27ae60;
+    color:white;
+}
+
+#analyzeBtn:disabled{
+    background:#777;
+    cursor:not-allowed;
+}
+
+#printBtn{
+    background:#3498db;
+    color:white;
+}
+
+/* RESULT */
+
+#result{
+    font-size:32px;
+    font-weight:bold;
+    margin:20px;
+}
+
+#confidence{
+    font-size:22px;
+}
+
+.progress-container{
+    width:90%;
+    max-width:600px;
+    height:25px;
+    background:#333;
+    border-radius:15px;
+    margin:15px auto;
+    overflow:hidden;
+}
+
+#progressBar{
+    height:100%;
+    width:0%;
+    background:#27ae60;
+    transition:width .5s;
+}
+
+.message{
+    padding:17px;
+    border-radius:12px;
+    margin:15px 0;
+}
+
+.warning{
+    background:rgba(192,57,43,.85);
+}
+
+.info{
+    background:rgba(41,128,185,.8);
+}
+
+.tip{
+    background:rgba(39,174,96,.75);
+}
+
+/* PREDICTIONS */
+
+.prediction{
+    max-width:650px;
+    margin:15px auto;
+    text-align:left;
+}
+
+.prediction-track{
+    height:18px;
+    background:#333;
+    border-radius:10px;
+    overflow:hidden;
+    margin-top:5px;
+}
+
+.prediction-fill{
+    height:100%;
+    background:#27ae60;
+}
+
+/* MAP */
+
+#mapSection{
+    display:none;
+    scroll-margin-top:90px;
+}
+
+#map{
+    width:100%;
+    height:400px;
+    border-radius:15px;
+    margin-top:15px;
+}
+
+#coordinates{
+    margin:15px;
+    padding:12px;
+    background:rgba(255,255,255,.12);
+    border-radius:10px;
+    font-size:17px;
+}
+
+/* DASHBOARD */
+
+.dashboard{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:12px;
+}
+
+.stat{
+    background:rgba(255,255,255,.12);
+    padding:18px;
+    border-radius:12px;
+}
+
+.stat-number{
+    font-size:30px;
+    font-weight:bold;
+}
+
+/* SOLUTIONS */
+
+#solutionsSection{
+    scroll-margin-top:90px;
+}
+
+.solution-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:15px;
+    text-align:left;
+}
+
+.solution{
+    background:rgba(255,255,255,.09);
+    padding:18px;
+    border-radius:14px;
+    border-left:4px solid #27ae60;
+    transition:.3s;
+}
+
+.solution:hover{
+    transform:translateY(-3px);
+    background:rgba(255,255,255,.14);
+}
+
+.solution h3{
+    margin:0 0 8px;
+    font-size:19px;
+}
+
+.solution p{
+    margin:0;
+    line-height:1.5;
+    font-size:14px;
+    opacity:.9;
+}
+
+.action-box{
+    margin-top:20px;
+    padding:18px;
+    border-radius:14px;
+    background:rgba(39,174,96,.18);
+    border:1px solid rgba(39,174,96,.4);
+}
+
+/* HELPLINES */
+
+#helpSection{
+    scroll-margin-top:90px;
+}
+
+.help-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:15px;
+}
+
+.help-box{
+    background:rgba(255,255,255,.09);
+    border-radius:14px;
+    padding:20px;
+    transition:.3s;
+}
+
+.help-box:hover{
+    transform:translateY(-3px);
+    background:rgba(255,255,255,.14);
+}
+
+.help-icon{
+    font-size:35px;
+}
+
+.help-number{
+    font-size:22px;
+    font-weight:bold;
+    color:#2ecc71;
+    margin:10px;
+}
+
+.help-button{
+    display:inline-block;
+    text-decoration:none;
+    color:white;
+    background:#27ae60;
+    padding:10px 17px;
+    border-radius:9px;
+    margin-top:10px;
+    font-weight:bold;
+}
+
+.help-button.blue{
+    background:#3498db;
+}
+
+.help-note{
+    margin-top:18px;
+    padding:14px;
+    border-radius:12px;
+    background:rgba(255,193,7,.12);
+    border:1px solid rgba(255,193,7,.25);
+    font-size:14px;
+}
+
+/* HISTORY */
+
+.history{
+    text-align:left;
+}
+
+.history-item{
+    padding:10px;
+    border-bottom:1px solid rgba(255,255,255,.2);
+}
+
+/* FOOTER */
+
+footer{
+    padding:20px;
+    opacity:.8;
+}
+
+/* MOBILE */
+
+@media(max-width:700px){
+
+    h1{
+        font-size:32px;
+    }
+
+    .dashboard{
+        grid-template-columns:repeat(2,1fr);
+    }
+
+    .solution-grid,
+    .help-grid{
+        grid-template-columns:1fr;
+    }
+
+    #map{
+        height:320px;
+    }
+
+    .nav-btn{
+        padding:9px 13px;
+        font-size:14px;
+    }
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>🌲 ForestGuard AI</h1>
+
+<div class="subtitle">
+AI-Powered Forest Monitoring & Protection System
+</div>
+
+<!-- NAVIGATION -->
+
+<div class="quick-nav">
+
+<a href="#helpSection" class="nav-btn">
+📞 Helplines
+</a>
+
+<a href="#mapSection" class="nav-btn" id="mapNav">
+🗺️ Fire Map
+</a>
+
+<a href="#solutionsSection" class="nav-btn">
+🌳 Solutions
+</a>
+
+</div>
+
+<!-- AI ANALYZER -->
+
+<div class="card upload-card">
+
+<h2>🤖 AI Forest Analyzer</h2>
+
+<div id="status">
+⏳ Loading AI model...
+</div>
+
+<div class="upload-box">
+
+<div class="upload-icon">
+📸🌲
+</div>
+
+<div class="upload-title">
+Upload a Forest Image
+</div>
+
+<div class="upload-subtitle">
+Let ForestGuard AI analyze the image for forest conditions
+</div>
+
+<label for="imageInput" class="file-label">
+📁 Choose Forest Image
+</label>
+
+<input
+type="file"
+id="imageInput"
+accept="image/*"
+
+>
+
+<div id="fileName" class="file-name">
+No image selected
+</div>
+
+<div class="upload-hint">
+Supports JPG, PNG and other image formats
+</div>
+
+</div>
+
+<img id="preview">
+
+<br>
+
+<button id="analyzeBtn" disabled>
+🔍 Analyze Image
+</button>
+
+<button id="printBtn">
+🖨️ Print Report
+</button>
+
+</div>
+
+<!-- AI RESULT -->
+
+<div class="card">
+
+<h2>🤖 AI Result</h2>
+
+<div id="result">
+Waiting for image...
+</div>
+
+<div id="confidence"></div>
+
+<div class="progress-container">
+<div id="progressBar"></div>
+</div>
+
+<div id="risk"></div>
+
+<div id="explanation"></div>
+
+<div id="impact"></div>
+
+<div id="tip"></div>
+
+</div>
+
+<!-- AI CONFIDENCE -->
+
+<div class="card">
+
+<h2>📊 AI Confidence</h2>
+
+<div id="predictions">
+No prediction yet.
+</div>
+
+</div>
+
+<!-- FIRE MAP -->
+
+<div class="card" id="mapSection">
+
+<h2>🔥 Forest Fire Location</h2>
+
+<p>
+A possible forest fire was detected.
+</p>
+
+<p>
+Click the map to mark the suspected fire location.
+</p>
+
+<div id="map"></div>
+
+<div id="coordinates">
+📍 No location selected
+</div>
+
+<div class="message warning">
+
+⚠️ Do not approach the fire.
+
+<br><br>
+
+Please verify the AI result and contact
+an adult or appropriate authorities.
+
+<br><br>
+
+<b>Emergency: 112</b>
+
+</div>
+
+</div>
+
+<!-- DASHBOARD -->
+
+<div class="card">
+
+<h2>📈 Dashboard</h2>
+
+<div class="dashboard">
+
+<div class="stat">
+<div class="stat-number" id="totalCount">0</div>
+Images Analyzed
+</div>
+
+<div class="stat">
+<div class="stat-number" id="healthyCount">0</div>
+🌳 Healthy
+</div>
+
+<div class="stat">
+<div class="stat-number" id="fireCount">0</div>
+🔥 Fire
+</div>
+
+<div class="stat">
+<div class="stat-number" id="deforestCount">0</div>
+🪓 Deforested
+</div>
+
+</div>
+
+</div>
+
+<!-- SOLUTIONS -->
+
+<div class="card" id="solutionsSection">
+
+<h2>🌳 Solutions to Deforestation</h2>
+
+<p>
+Deforestation can damage wildlife habitats, reduce biodiversity,
+increase soil erosion and contribute to environmental problems.
+We can protect forests through practical and sustainable actions.
+</p>
+
+<div class="solution-grid">
+
+<div class="solution">
+<h3>🌱 Reforestation</h3>
+<p>
+Plant native trees in areas where forests have been lost.
+Reforestation helps restore habitats and improve forest cover.
+</p>
+</div>
+
+<div class="solution">
+<h3>🌲 Protect Existing Forests</h3>
+<p>
+Prevent unnecessary tree cutting and protect natural forests
+from illegal clearing and destruction.
+</p>
+</div>
+
+<div class="solution">
+<h3>♻️ Reduce Paper Waste</h3>
+<p>
+Use paper responsibly, recycle whenever possible and choose
+digital alternatives when suitable.
+</p>
+</div>
+
+<div class="solution">
+<h3>🪵 Sustainable Resources</h3>
+<p>
+Use wood and other forest resources responsibly and support
+sustainable forestry practices.
+</p>
+</div>
+
+<div class="solution">
+<h3>🔥 Prevent Forest Fires</h3>
+<p>
+Avoid activities that can accidentally start fires in forests.
+Report suspected fires to responsible adults or authorities.
+</p>
+</div>
+
+<div class="solution">
+<h3>🐘 Protect Wildlife</h3>
+<p>
+Protecting forests also protects animals, birds, insects and
+the ecosystems that depend on forest habitats.
+</p>
+</div>
+
+<div class="solution">
+<h3>👨‍👩‍👧‍👦 Spread Awareness</h3>
+<p>
+Teach communities and students about the importance of forests
+and encourage responsible environmental habits.
+</p>
+</div>
+
+<div class="solution">
+<h3>🤖 Use Technology</h3>
+<p>
+AI, satellite images and monitoring systems can help identify
+forest fires, forest loss and environmental changes earlier.
+</p>
+</div>
+
+</div>
+
+<div class="action-box">
+
+<h3>💚 What Can We Do?</h3>
+
+<p>
+Plant and protect trees • Reduce waste • Prevent fires •
+Protect wildlife • Report forest damage • Spread awareness
+</p>
+
+</div>
+
+</div>
+
+<!-- PROBLEM VIDEO -->
+
+<div class="card" id="videosSection">
+
+<h2>🔥 Problem: Causes of Forest Fires</h2>
+
+<p>
+This video explains the causes and problems associated with forest fires.
+</p>
+
+<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:15px;margin-top:20px;">
+
+<iframe
+src="https://www.youtube.com/embed/CQUhQ2ae1T8"
+title="Problem: Causes of Forest Fires"
+style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;"
+allowfullscreen>
+</iframe>
+
+</div>
+
+</div>
+
+<!-- HELPLINES -->
+
+<div class="card" id="helpSection">
+
+<h2>📞 Official Help & Helplines</h2>
+
+<p>
+If you notice a suspected forest fire or serious forest damage,
+do not approach the danger. Inform an adult and contact the
+appropriate authorities.
+</p>
+
+<div class="help-grid">
+
+<div class="help-box">
+
+<div class="help-icon">
+🌲📞
+</div>
+
+<h3>
+Tamil Nadu Forest Department
+</h3>
+
+<div class="help-number">
+1800 425 4409
+</div>
+
+<a
+class="help-button"
+href="tel:18004254409"
+
+>
+
+📞 Call Forest Helpline </a>
+
+<br>
+
+<a
+class="help-button blue"
+href="https://www.forests.tn.gov.in/"
+target="_blank"
+rel="noopener"
+
+>
+
+🌐 Official Website </a>
+
+</div>
+
+<div class="help-box">
+
+<div class="help-icon">
+🚨
+</div>
+
+<h3>
+Emergency Services
+</h3>
+
+<div class="help-number">
+112
+</div>
+
+<a
+class="help-button"
+href="tel:112"
+
+>
+
+📞 Emergency Call </a>
+
+<br>
+
+<a
+class="help-button blue"
+href="https://112.gov.in/"
+target="_blank"
+rel="noopener"
+
+>
+
+🌐 Official 112 Website </a>
+
+</div>
+
+</div>
+
+<div class="help-note">
+
+⚠️ <b>Important:</b>
+ForestGuard AI is an educational AI monitoring tool.
+Always verify AI results and rely on responsible adults
+and official authorities for emergencies.
+
+</div>
+
+</div>
+
+<!-- HISTORY -->
+
+<div class="card">
+
+<h2>📜 Scan History</h2>
+
+<div id="history">
+No scans yet.
+</div>
+
+</div>
+
+<footer>
+
+🌲 ForestGuard AI <br>
+AI for Forest Protection
+
+</footer>
+
+</div>
+
+<script>
+
+let model = null;
+let selectedImage = null;
+
+let totalCount = 0;
+let healthyCount = 0;
+let fireCount = 0;
+let deforestCount = 0;
+
+let scanHistory = [];
+
+let map = null;
+let fireMarker = null;
+
+
+/* LOAD AI */
+
+async function loadAI(){
+
+    const status =
+        document.getElementById("status");
+
+    try{
+
+        status.innerHTML =
+            "⏳ Loading AI model...";
+
+        if(typeof tf === "undefined"){
+            throw new Error(
+                "TensorFlow.js did not load."
+            );
+        }
+
+        if(typeof tmImage === "undefined"){
+            throw new Error(
+                "Teachable Machine library did not load."
+            );
+        }
+
+        const modelURL =
+            "./model.json";
+
+        const metadataURL =
+            "./metadata.json";
+
+        model = await tmImage.load(
+            modelURL,
+            metadataURL
+        );
+
+        status.innerHTML =
+            "✅ AI Model Ready! Upload an image.";
+
+        document.getElementById(
+            "analyzeBtn"
+        ).disabled = false;
+
+    }
+    catch(error){
+
+        console.error(error);
+
+        status.innerHTML =
+            "❌ Model failed to load.<br>" +
+            "<small>" +
+            error.message +
+            "</small>";
+
+    }
+
+}
+
+
+/* IMAGE UPLOAD */
+
+document.getElementById("imageInput")
+.addEventListener(
+"change",
+function(event){
+
+    const file =
+        event.target.files[0];
+
+    if(!file)
+        return;
+
+    document.getElementById(
+        "fileName"
+    ).innerHTML =
+        "✅ Selected: <b>" +
+        file.name +
+        "</b>";
+
+    const reader =
+        new FileReader();
+
+    reader.onload =
+    function(e){
+
+        const preview =
+            document.getElementById(
+                "preview"
+            );
+
+        preview.src =
+            e.target.result;
+
+        preview.style.display =
+            "block";
+
+        selectedImage =
+            preview;
+
+        document.getElementById(
+            "result"
+        ).innerHTML =
+            "Image ready. Click Analyze.";
+
+        document.getElementById(
+            "confidence"
+        ).innerHTML = "";
+
+        document.getElementById(
+            "progressBar"
+        ).style.width =
+            "0%";
+
+    };
+
+    reader.readAsDataURL(file);
+
+});
+
+
+/* ANALYZE BUTTON */
+
+document.getElementById(
+    "analyzeBtn"
+)
+.addEventListener(
+    "click",
+    analyzeImage
+);
+
+
+/* ANALYZE */
+
+async function analyzeImage(){
+
+    if(!model){
+
+        alert(
+            "AI model is not ready."
+        );
+
+        return;
+    }
+
+    if(!selectedImage){
+
+        alert(
+            "Please upload an image first."
+        );
+
+        return;
+    }
+
+    try{
+
+        document.getElementById(
+            "status"
+        ).innerHTML =
+            "🔄 AI is analyzing...";
+
+        const predictions =
+            await model.predict(
+                selectedImage,
+                false
+            );
+
+        predictions.sort(
+            (a,b) =>
+                b.probability -
+                a.probability
+        );
+
+        const best =
+            predictions[0];
+
+        const label =
+            best.className;
+
+        const confidence =
+            best.probability * 100;
+
+        showResult(
+            label,
+            confidence,
+            predictions
+        );
+
+        document.getElementById(
+            "status"
+        ).innerHTML =
+            "✅ Analysis complete!";
+
+    }
+    catch(error){
+
+        console.error(error);
+
+        document.getElementById(
+            "status"
+        ).innerHTML =
+            "❌ Analysis failed.";
+
+        alert(
+            "Analysis failed. Check the browser console."
+        );
+
+    }
+
+}
+
+
+/* RESULT */
+
+function showResult(
+    label,
+    confidence,
+    predictions
+){
+
+    const lower =
+        label.toLowerCase();
+
+    let type =
+        "unknown";
+
+    if(lower.includes("healthy"))
+        type = "healthy";
+
+    else if(lower.includes("fire"))
+        type = "fire";
+
+    else if(
+        lower.includes("deforest") ||
+        lower.includes("deforestation")
+    )
+        type = "deforest";
+
+
+    let resultText =
+        label;
+
+    if(type === "healthy")
+        resultText =
+            "🌳 Healthy Forest";
+
+    else if(type === "fire")
+        resultText =
+            "🔥 Forest Fire Detected";
+
+    else if(type === "deforest")
+        resultText =
+            "🪓 Deforested Forest";
+
+
+    document.getElementById(
+        "result"
+    ).innerHTML =
+        resultText;
+
+
+    document.getElementById(
+        "confidence"
+    ).innerHTML =
+        "Confidence: " +
+        confidence.toFixed(1) +
+        "%";
+
+
+    document.getElementById(
+        "progressBar"
+    ).style.width =
+        confidence + "%";
+
+
+    /* RISK */
+
+    let risk = "";
+
+    if(type === "fire"){
+
+        risk =
+        "<div class='message warning'>" +
+        "🚨 RISK LEVEL: HIGH" +
+        "</div>";
+
+    }
+
+    else if(type === "deforest"){
+
+        risk =
+        "<div class='message warning'>" +
+        "⚠️ RISK LEVEL: MEDIUM" +
+        "</div>";
+
+    }
+
+    else if(type === "healthy"){
+
+        risk =
+        "<div class='message info'>" +
+        "✅ RISK LEVEL: LOW" +
+        "</div>";
+
+    }
+
+    document.getElementById(
+        "risk"
+    ).innerHTML =
+        risk;
+
+
+    /* EXPLANATION */
+
+    if(type === "fire"){
+
+        document.getElementById(
+            "explanation"
+        ).innerHTML =
+        "<div class='message info'>" +
+        "🧠 The AI detected visual patterns that may " +
+        "be associated with a forest fire. Please verify the result." +
+        "</div>";
+
+    }
+
+    else if(type === "deforest"){
+
+        document.getElementById(
+            "explanation"
+        ).innerHTML =
+        "<div class='message info'>" +
+        "🧠 The AI detected visual patterns that may " +
+        "indicate reduced forest cover." +
+        "</div>";
+
+    }
+
+    else if(type === "healthy"){
+
+        document.getElementById(
+            "explanation"
+        ).innerHTML =
+        "<div class='message info'>" +
+        "🧠 The AI detected visual patterns associated " +
+        "with healthy forest vegetation." +
+        "</div>";
+
+    }
+
+
+    /* IMPACT */
+
+    if(type === "fire"){
+
+        document.getElementById(
+            "impact"
+        ).innerHTML =
+        "<div class='message warning'>" +
+        "🌍 Forest fires can damage vegetation, " +
+        "wildlife habitats and air quality." +
+        "</div>";
+
+    }
+
+    else if(type === "deforest"){
+
+        document.getElementById(
+            "impact"
+        ).innerHTML =
+        "<div class='message warning'>" +
+        "🌍 Deforestation can reduce wildlife habitat " +
+        "and increase soil erosion." +
+        "</div>";
+
+    }
+
+    else if(type === "healthy"){
+
+        document.getElementById(
+            "impact"
+        ).innerHTML =
+        "<div class='message info'>" +
+        "🌍 Healthy forests support biodiversity " +
+        "and ecosystems." +
+        "</div>";
+
+    }
+
+
+    /* TIP */
+
+    if(type === "fire"){
+
+        document.getElementById(
+            "tip"
+        ).innerHTML =
+        "<div class='message tip'>" +
+        "💡 Never approach a suspected forest fire. " +
+        "Get an adult and contact appropriate authorities." +
+        "</div>";
+
+    }
+
+    else if(type === "deforest"){
+
+        document.getElementById(
+            "tip"
+        ).innerHTML =
+        "<div class='message tip'>" +
+        "💡 Protect existing trees and support reforestation." +
+        "</div>";
+
+    }
+
+    else if(type === "healthy"){
+
+        document.getElementById(
+            "tip"
+        ).innerHTML =
+        "<div class='message tip'>" +
+        "💡 Help protect forests by preventing littering " +
+        "and unnecessary tree removal." +
+        "</div>";
+
+    }
+
+
+    /* PREDICTIONS */
+
+    let predictionHTML = "";
+
+    predictions.forEach(
+    prediction => {
+
+        const percent =
+            prediction.probability * 100;
+
+        predictionHTML +=
+        "<div class='prediction'>" +
+
+        "<b>" +
+        prediction.className +
+        "</b> — " +
+
+        percent.toFixed(1) +
+        "%" +
+
+        "<div class='prediction-track'>" +
+
+        "<div class='prediction-fill' " +
+        "style='width:" +
+        percent +
+        "%'></div>" +
+
+        "</div>" +
+
+        "</div>";
+
+    });
+
+
+    document.getElementById(
+        "predictions"
+    ).innerHTML =
+        predictionHTML;
+
+
+    /* DASHBOARD */
+
+    totalCount++;
+
+    if(type === "healthy")
+        healthyCount++;
+
+    if(type === "fire")
+        fireCount++;
+
+    if(type === "deforest")
+        deforestCount++;
+
+    updateDashboard();
+
+
+    /* HISTORY */
+
+    scanHistory.unshift({
+
+        result:
+            resultText,
+
+        confidence:
+            confidence.toFixed(1) +
+            "%",
+
+        time:
+            new Date()
+            .toLocaleString()
+
+    });
+
+    scanHistory =
+        scanHistory.slice(0,5);
+
+    updateHistory();
+
+
+    /* MAP */
+
+    const mapSection =
+        document.getElementById(
+            "mapSection"
+        );
+
+    if(type === "fire"){
+
+        mapSection.style.display =
+            "block";
+
+        setTimeout(
+            createMap,
+            300
+        );
+
+    }
+
+    else{
+
+        mapSection.style.display =
+            "none";
+
+    }
+
+}
+
+
+/* DASHBOARD */
+
+function updateDashboard(){
+
+    document.getElementById(
+        "totalCount"
+    ).innerText =
+        totalCount;
+
+    document.getElementById(
+        "healthyCount"
+    ).innerText =
+        healthyCount;
+
+    document.getElementById(
+        "fireCount"
+    ).innerText =
+        fireCount;
+
+    document.getElementById(
+        "deforestCount"
+    ).innerText =
+        deforestCount;
+
+}
+
+
+/* HISTORY */
+
+function updateHistory(){
+
+    const box =
+        document.getElementById(
+            "history"
+        );
+
+    box.innerHTML = "";
+
+    scanHistory.forEach(
+    item => {
+
+        const div =
+            document.createElement(
+                "div"
+            );
+
+        div.className =
+            "history-item";
+
+        div.innerHTML =
+            "<b>" +
+            item.result +
+            "</b><br>" +
+
+            "Confidence: " +
+            item.confidence +
+            "<br>" +
+
+            "🕒 " +
+            item.time;
+
+        box.appendChild(div);
+
+    });
+
+}
+
+
+/* MAP */
+
+function createMap(){
+
+    if(map !== null){
+
+        map.invalidateSize();
+
+        return;
+
+    }
+
+    map =
+        L.map("map")
+        .setView(
+            [20.5937,78.9629],
+            5
+        );
+
+    L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+            attribution:
+                "&copy; OpenStreetMap contributors"
+        }
+    ).addTo(map);
+
+
+    map.on(
+        "click",
+        function(e){
+
+            if(fireMarker !== null){
+
+                map.removeLayer(
+                    fireMarker
+                );
+
+            }
+
+            fireMarker =
+                L.marker(
+                    e.latlng
+                )
+                .addTo(map);
+
+            fireMarker
+            .bindPopup(
+                "🔥 Suspected fire location"
+            )
+            .openPopup();
+
+
+            document.getElementById(
+                "coordinates"
+            ).innerHTML =
+
+                "📍 Latitude: " +
+                e.latlng.lat.toFixed(5) +
+
+                "<br>" +
+
+                "Longitude: " +
+                e.latlng.lng.toFixed(5);
+
+        }
+    );
+
+}
+
+
+/* PRINT */
+
+document.getElementById(
+    "printBtn"
+)
+.addEventListener(
+    "click",
+    function(){
+
+        window.print();
+
+    }
+);
+
+
+/* MAP NAVIGATION */
+
+document.getElementById(
+    "mapNav"
+)
+.addEventListener(
+    "click",
+    function(event){
+
+        const mapSection =
+            document.getElementById(
+                "mapSection"
+            );
+
+        if(
+            mapSection.style.display ===
+            "none" ||
+            mapSection.style.display === ""
+        ){
+
+            mapSection.style.display =
+                "block";
+
+            setTimeout(
+                function(){
+
+                    createMap();
+
+                    mapSection.scrollIntoView({
+                        behavior:"smooth",
+                        block:"start"
+                    });
+
+                    if(map){
+                        map.invalidateSize();
+                    }
+
+                },
+                150
+            );
+
+            event.preventDefault();
+
+        }
+
+    }
+);
+
+
+/* START */
+
+window.addEventListener(
+    "load",
+    loadAI
+);
+
+</script>
+
+</body>
+</html>
